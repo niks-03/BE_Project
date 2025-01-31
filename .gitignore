@@ -1,1 +1,4 @@
 myenv/
+TESTING_ENV/
+RAG_MODEL_DEV/__pycache__/
+RAG_MODEL_DEV/.env

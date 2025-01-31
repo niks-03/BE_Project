@@ -1,0 +1,14 @@
+## PACKAGES: 
+pip install google-generativeai ==0.8.3
+pip install python-dotenv    ==1.0.1
+pip install "fastapi[standard]" ==0.115.6
+pip install langchain ==0.3.14
+pip install langchain-google-genai ==2.0.8
+pip install chromadb ==0.5.23
+pip install langchain-chroma ==0.2.0
+
+## INSTRUCTIONS:
+run app : fastapi dev app.py OR  uvicorn main:app --reload 
+
+## send request to endpoint using file 
+curl.exe -X POST -F "file=@E:\Nikhil\BE_PR_Development\RAG_MODEL_DEV\requirements.txt" http://127.0.0.1:8000/process-document
