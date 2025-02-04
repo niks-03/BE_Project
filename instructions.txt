@@ -6,6 +6,8 @@ pip install langchain ==0.3.14
 pip install langchain-google-genai ==2.0.8
 pip install chromadb ==0.5.23
 pip install langchain-chroma ==0.2.0
+pip install langchain-huggingface ==0.1.2
+pip install sentence-transformers ==3.4.1
 
 ## INSTRUCTIONS:
 run app : fastapi dev app.py OR  uvicorn main:app --reload 
