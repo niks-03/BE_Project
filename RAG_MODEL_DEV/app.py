@@ -58,7 +58,20 @@ def receive_signal(signalNumber, frame):
 async def startup_event():
     import signal
     signal.signal(signal.SIGINT, receive_signal)
-    # startup tasks
+    
+    # Initialize vector store from persist directory if it exists
+    try:
+        chroma_db_path = os.path.join(os.path.dirname(__file__), "Models", "../chroma-db")
+        if os.path.exists(chroma_db_path):
+            logger.info("Found existing chroma-db directory")
+            # We'll initialize the vector store when needed in the endpoints
+            app.state.vector_store = None
+        else:
+            logger.info("No existing chroma-db directory found")
+            app.state.vector_store = None
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}")
+        app.state.vector_store = None
 
 # # receive user query and process it
 class ChatRequest(BaseModel):
@@ -105,21 +118,19 @@ async def upload_and_process_document(file: UploadFile = File(...)):
         
         if os.path.exists(file_path):
             try:
-                # Add more detailed logging
                 logger.info("Starting document processing...")
                 vector_store = process_document(file_path, file_name, app.state.embedding_model, app.state.cross_encoder_model)
                 logger.info("Document processing completed")
                 
                 # Verify vector store has documents
-                if hasattr(vector_store, '_collection'):
-                    count = vector_store._collection.count()
-                    logger.info(f"Documents in vector store: {count}")
+                count = len(vector_store.get()['ids'])
+                logger.info(f"Documents in vector store: {count}")
                 
                 app.state.vector_store = vector_store
-                return DocumentResponse(response=f"Successfully processed file {file_name}")
+                return DocumentResponse(response=f"Successfully processed file {file_name}. Added {count} documents to vector store.")
             except Exception as proc_error:
                 logger.error(f"Processing error: {str(proc_error)}")
-                return DocumentResponse(response=f"An error occurred while processing the document: {str(proc_error)}")
+                raise HTTPException(status_code=500, detail=str(proc_error))
         else:
             raise Exception("File was not saved successfully")
             
@@ -127,13 +138,35 @@ async def upload_and_process_document(file: UploadFile = File(...)):
         logger.error(f"Error in upload endpoint: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     
-    
+
+## endpoint to check if vectore store is created
 @app.get("/check-documents")
 async def check_documents():
     try:
-        if hasattr(app.state, 'vector_store'):
-            count = len(app.state.vector_store.get()['ids'])
+        logger.info("Checking vector store state...")
+        if not hasattr(app.state, 'vector_store'):
+            logger.warning("Vector store not found in app state")
+            return {"status": "error", "message": "Vector store not initialized"}
+            
+        vector_store = app.state.vector_store
+        if vector_store is None:
+            logger.warning("Vector store is None")
+            return {"status": "error", "message": "Vector store is None"}
+            
+        # Try to load from persist directory if vector store exists
+        try:
+            chroma_db_path = os.path.join(os.path.dirname(__file__), "Models", "../chroma-db")
+            if os.path.exists(chroma_db_path):
+                collections = os.listdir(chroma_db_path)
+                logger.info(f"Found collections in chroma-db: {collections}")
+                
+            count = len(vector_store.get()['ids'])
+            logger.info(f"Successfully retrieved {count} documents from vector store")
             return {"status": "success", "document_count": count}
-        return {"status": "error", "message": "Vector store not initialized"}
+        except Exception as e:
+            logger.error(f"Error accessing vector store: {str(e)}")
+            return {"status": "error", "message": f"Error accessing vector store: {str(e)}"}
+            
     except Exception as e:
+        logger.error(f"Unexpected error in check-documents: {str(e)}")
         return {"status": "error", "message": str(e)}

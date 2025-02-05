@@ -55,15 +55,8 @@ def process_document(filepath: str, filename: str, embedding_model, cross_encode
                 documents=documents_with_context,
                 embedding=embedding_model,
                 persist_directory=chroma_db_path,
-                collection_name=f"report_{filename}"  # Added underscore for safe collection name
+                collection_name=f"report_{filename}" 
             )
-
-            # Explicitly persist the changes
-            vector_store.persist()
-
-            # Verify document count
-            count = len(vector_store.get()['ids'])
-            print(f"Successfully stored {count} documents in ChromaDB")
 
             return vector_store
 
@@ -71,5 +64,5 @@ def process_document(filepath: str, filename: str, embedding_model, cross_encode
             raise Exception(f"File not found at {filepath}")
 
     except Exception as e:
-        return f"file path is not valid: {str(e)}"
+        raise Exception(f"Error processing document: {str(e)}")
    
