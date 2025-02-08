@@ -12,6 +12,8 @@ from sentence_transformers import CrossEncoder
 
 from Models.refine_query import RefineQuery
 from Models.process_doc import process_document
+# from Models.handle_doc_chat import get_llm_response
+from Models.find_context import get_context
 
 # Create logs directory if it doesn't exist
 if not os.path.exists('logs'):
@@ -22,7 +24,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/app.log'),
+        logging.FileHandler('logs/fatapi_main.log'),
         # logging.StreamHandler()  # This will also print to console
     ]
 )
@@ -73,7 +75,7 @@ async def startup_event():
         logger.error(f"Error during startup: {str(e)}")
         app.state.vector_store = None
 
-# # receive user query and process it
+### receive user query and process it
 class ChatRequest(BaseModel):
     prompt: str
 
@@ -86,11 +88,12 @@ async def Chat(request: ChatRequest):
     return ChatResponse(response=refined_query)
     
 
-# recieve document and process it
+#### recieve document and process it
 class DocumentResponse(BaseModel):
-    response: str
+    response: str;
+    status: str
 
-## Create temp directory if it doesn't exist
+# Create temp directory if it doesn't exist
 UPLOAD_DIR = Path("./upload_files")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -127,10 +130,11 @@ async def upload_and_process_document(file: UploadFile = File(...)):
                 logger.info(f"Documents in vector store: {count}")
                 
                 app.state.vector_store = vector_store
-                return DocumentResponse(response=f"Successfully processed file {file_name}. Added {count} documents to vector store.")
+                return DocumentResponse(status="success" ,response=f"Successfully processed file {file_name}. Added {count} documents to vector store.")
             except Exception as proc_error:
                 logger.error(f"Processing error: {str(proc_error)}")
-                raise HTTPException(status_code=500, detail=str(proc_error))
+                # raise HTTPException(status_code=500, detail=str(proc_error))
+                return DocumentResponse(status="error", response=str(proc_error))
         else:
             raise Exception("File was not saved successfully")
             
@@ -138,6 +142,43 @@ async def upload_and_process_document(file: UploadFile = File(...)):
         logger.error(f"Error in upload endpoint: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     
+
+### process query and send LLM response
+class ChatRequest(BaseModel):
+    prompt: str
+
+class ChatResponse(BaseModel):
+    response: str
+
+@app.post("/doc-chat", response_model=ChatResponse)
+async def Chat(request: ChatRequest):
+    try:
+        vector_store = app.state.vector_store
+        embedding_model = app.state.embedding_model
+        cross_encoder_model = app.state.cross_encoder_model
+
+        if vector_store and embedding_model and cross_encoder_model:
+            logger.info("Processing user query...")
+            context = get_context(
+                vector_store=vector_store, 
+                query=request.prompt, 
+                cross_encoder=cross_encoder_model, 
+                embedding_model=embedding_model
+            )
+
+            if context:
+                return ChatResponse(response=context)
+            else:
+                logger.error("No context found")
+                return ChatResponse(response="Sorry, I couldn't find relevant information to answer your question.")
+            
+        else:
+            logger.error("Required components not initialized")
+            return ChatResponse(response="System is not properly initialized. Please ensure a document is processed first.")
+        
+    except Exception as e:
+        logger.error(f"Error processing user query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 ## endpoint to check if vectore store is created
 @app.get("/check-documents")
