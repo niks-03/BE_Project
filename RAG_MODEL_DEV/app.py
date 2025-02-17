@@ -9,10 +9,12 @@ import os
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from sentence_transformers import CrossEncoder
+from langchain.memory import ConversationBufferWindowMemory
 
 from Models.refine_query import RefineQuery
 from Models.process_doc import process_document
 from Models.find_context import get_context
+from Models.handle_doc_chat import get_llm_response
 
 # Create logs directory if it doesn't exist
 if not os.path.exists('logs'):
@@ -30,7 +32,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-from Models.handle_doc_chat import get_llm_response
 # *************************************************
 
 ## laod the embedding and cross-encoder models
@@ -39,14 +40,21 @@ async def lifespan(app: FastAPI):
     try:
         embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         cross_encoder_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        memory = ConversationBufferWindowMemory(k=10, memory_key="chat_history", return_messages=True, output_key="output")
 
         app.state.embedding_model = embedding_model
         app.state.cross_encoder_model = cross_encoder_model
+        app.state.memory = memory
+        app.state.file_name = None
+        app.state.vector_store = None
 
         yield
     finally:
         app.state.embedding_model = None
         app.state.cross_encoder_model = None
+        app.state.memory = None
+        app.state.file_name = None
+        app.state.vector_store = None
 
 # Initialize FastAPI app
 app = FastAPI(lifespan=lifespan)
@@ -105,6 +113,7 @@ async def upload_and_process_document(file: UploadFile = File(...)):
     try:
         # Save the file
         file_path, file_name = await save_uploaded_file(file)
+        app.state.file_name = file_name
         logger.info(f"File received: {file_name} at {file_path}")
         
         if os.path.exists(file_path):
@@ -144,6 +153,8 @@ async def Chat(request: ChatRequest):
         vector_store = app.state.vector_store
         embedding_model = app.state.embedding_model
         cross_encoder_model = app.state.cross_encoder_model
+        memory = app.state.memory
+        file_name = app.state.file_name
 
         if vector_store and embedding_model and cross_encoder_model:
             logger.info("Processing user query...")
@@ -157,9 +168,14 @@ async def Chat(request: ChatRequest):
             if context:
                 refined_query = RefineQuery(request.prompt)
                 logger.info("getting LLM response...")
-                llm_response = get_llm_response(refined_query)
+                llm_response = get_llm_response(user_query=refined_query,
+                                                vector_store=vector_store, 
+                                                query_context=context, 
+                                                memory=memory,
+                                                embedding_model=embedding_model,
+                                                file_name=file_name)
 
-                return ChatResponse(response=f"{context}:::: {refined_query}")
+                return ChatResponse(response=llm_response)
             else:
                 logger.error("No context found")
                 return ChatResponse(response="Sorry, I couldn't find relevant information to answer your question.")
