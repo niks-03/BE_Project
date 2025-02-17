@@ -12,7 +12,6 @@ from sentence_transformers import CrossEncoder
 
 from Models.refine_query import RefineQuery
 from Models.process_doc import process_document
-# from Models.handle_doc_chat import get_llm_response
 from Models.find_context import get_context
 
 # Create logs directory if it doesn't exist
@@ -31,6 +30,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+from Models.handle_doc_chat import get_llm_response
 # *************************************************
 
 ## laod the embedding and cross-encoder models
@@ -74,18 +74,6 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
         app.state.vector_store = None
-
-### receive user query and process it
-class ChatRequest(BaseModel):
-    prompt: str
-
-class ChatResponse(BaseModel):
-    response: str
-
-@app.post("/chat", response_model = ChatResponse)
-async def Chat(request: ChatRequest):
-    refined_query = RefineQuery(request.prompt)
-    return ChatResponse(response=refined_query)
     
 
 #### recieve document and process it
@@ -167,7 +155,11 @@ async def Chat(request: ChatRequest):
             )
 
             if context:
-                return ChatResponse(response=context)
+                refined_query = RefineQuery(request.prompt)
+                logger.info("getting LLM response...")
+                llm_response = get_llm_response(refined_query)
+
+                return ChatResponse(response=f"{context}:::: {refined_query}")
             else:
                 logger.error("No context found")
                 return ChatResponse(response="Sorry, I couldn't find relevant information to answer your question.")
@@ -180,7 +172,7 @@ async def Chat(request: ChatRequest):
         logger.error(f"Error processing user query: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-## endpoint to check if vectore store is created
+### endpoint to check if vectore store is created
 @app.get("/check-documents")
 async def check_documents():
     try:

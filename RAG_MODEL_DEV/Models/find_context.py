@@ -3,19 +3,6 @@ from nltk.tokenize import word_tokenize
 import os
 import logging
 
-# Create logs directory if it doesn't exist
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-
-# Set up logging to file
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/find_context.log'),
-        # logging.StreamHandler()  # This will also print to console
-    ]
-)
 
 logger = logging.getLogger(__name__)
 
