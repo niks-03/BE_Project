@@ -14,3 +14,34 @@ run app : fastapi dev app.py OR  uvicorn main:app --reload
 
 ## send request to endpoint using file 
 curl.exe -X POST -F "file=@E:\Nikhil\BE_PR_Development\RAG_MODEL_DEV\requirements.txt" http://127.0.0.1:8000/process-document
+
+###############################################
+
+* base endpoint: http://127.0.0.1:8000/
+
+1. send document to process for QnA:
+    A. endpoint: http://127.0.0.1:8000/process-document
+    B. files supported: PDF
+    C. after successful document process:
+        returned Response : {status="success" ,response="Successfully processed file {file_name}. Added {document_count} documents to vector store."}
+    D. after unsuccessful document process:
+        returned Response : {
+            "detail": {
+                "error": error-text,
+                "message": error-message
+            }
+        }
+
+2. ask query related to document:
+    A. endpoint: http://127.0.0.1:8000/doc-chat
+    B. hitting endpoint requirement:
+        { "prompt" : user-query}
+    C. after sucess query processing:
+        returned Response: { "response" : response-text}
+    D. after unsuccessful query processing:
+        returned Response : {
+            "detail": {
+                "error": error-text,
+                "message": error-message
+            }
+        }
