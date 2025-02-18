@@ -129,15 +129,28 @@ async def upload_and_process_document(file: UploadFile = File(...)):
                 app.state.vector_store = vector_store
                 return DocumentResponse(status="success" ,response=f"Successfully processed file {file_name}. Added {count} documents to vector store.")
             except Exception as proc_error:
-                logger.error(f"Processing error: {str(proc_error)}")
-                # raise HTTPException(status_code=500, detail=str(proc_error))
-                return DocumentResponse(status="error", response=str(proc_error))
+                logger.error(f"Document Processing error: {str(proc_error)}")
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Error in document processing.")
+                # return DocumentResponse(status="error", response=str(proc_error))
         else:
-            raise Exception("File was not saved successfully")
+            logger.error("file was not saved successfully in server for processing.")
+            raise HTTPException(
+                status_code=404,
+                detail="File was not saved successfully in server for processing."
+            )
+        
+    except HTTPException as e:
+        logger.error(f"error processing document: {str(e)}")
+        raise e
             
     except Exception as e:
-        logger.error(f"Error in upload endpoint: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Internal Server Error", "message": "An unexpected error occurred. Please try again later."}
+        )
     
 
 ### process query and send LLM response
@@ -178,15 +191,26 @@ async def Chat(request: ChatRequest):
                 return ChatResponse(response=llm_response)
             else:
                 logger.error("No context found")
-                return ChatResponse(response="Sorry, I couldn't find relevant information to answer your question.")
+                raise HTTPException(
+                status_code=404, 
+                detail={"error": "Context Not Found", "message": "Sorry, I couldn't find relevant information to answer your question."})
             
         else:
             logger.error("Required components not initialized")
-            return ChatResponse(response="System is not properly initialized. Please ensure a document is processed first.")
+            raise HTTPException(
+                status_code=500, 
+                detail={"error": "Initialization Error", "message": "System is not properly initialized. Please ensure a document is processed first."})
         
-    except Exception as e:
+    except HTTPException as e:
         logger.error(f"Error processing user query: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise e
+    
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Internal Server Error", "message": "An unexpected error occurred. Please try again later."}
+        )
 
 ### endpoint to check if vectore store is created
 @app.get("/check-documents")
