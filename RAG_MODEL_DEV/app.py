@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
         app.state.cross_encoder_model = cross_encoder_model
         app.state.memory = memory
         app.state.chat_file_name = None
+        app.state.visualize_file_name = None
         app.state.vector_store = None
 
         yield
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
         app.state.cross_encoder_model = None
         app.state.memory = None
         app.state.chat_file_name = None
+        app.state.visualize_file_name = None
         app.state.vector_store = None
 
 # Initialize FastAPI app
@@ -211,6 +213,39 @@ async def Chat(request: ChatRequest):
             status_code=500,
             detail={"error": "Internal Server Error", "message": "An unexpected error occurred. Please try again later."}
         )
+    
+
+### endpoint to process structured data to get visuals
+class VisualizeDocumentResponse(BaseModel):
+    response: str;
+
+@app.post("/save-visualize-data", response_model=VisualizeDocumentResponse)
+async def upload_and_save_document(file: UploadFile = File(...)):
+    try:
+        # Save the file
+        file_path, visualize_file_name = await save_uploaded_file(file)
+        app.state.visualize_file_name = visualize_file_name
+        logger.info(f"Visualize data File received: {visualize_file_name} at {file_path}")
+    
+        if visualize_file_name:
+            return VisualizeDocumentResponse(response=f"Visualization file saved successfully {visualize_file_name}")
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail={"error": "File saving error", "message": "Error while saving Visualization file."})
+
+    except HTTPException as e:
+        logger.error(f"{str(e)}")
+        return e
+    
+    except Exception as e:
+        logger.info(f"Unexpected error while saving visualization data file: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Internal Server Error", "message": "An unexpected error occurred. Please try again later."}
+        )
+
+
 
 ### endpoint to check if vectore store is created
 @app.get("/check-documents")
