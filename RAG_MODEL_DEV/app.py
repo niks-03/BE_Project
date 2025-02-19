@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
         app.state.embedding_model = embedding_model
         app.state.cross_encoder_model = cross_encoder_model
         app.state.memory = memory
-        app.state.file_name = None
+        app.state.chat_file_name = None
         app.state.vector_store = None
 
         yield
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
         app.state.embedding_model = None
         app.state.cross_encoder_model = None
         app.state.memory = None
-        app.state.file_name = None
+        app.state.chat_file_name = None
         app.state.vector_store = None
 
 # Initialize FastAPI app
@@ -112,14 +112,14 @@ async def save_uploaded_file(file: UploadFile) -> tuple[str, str]:
 async def upload_and_process_document(file: UploadFile = File(...)):
     try:
         # Save the file
-        file_path, file_name = await save_uploaded_file(file)
-        app.state.file_name = file_name
-        logger.info(f"File received: {file_name} at {file_path}")
+        file_path, chat_file_name = await save_uploaded_file(file)
+        app.state.chat_file_name = chat_file_name
+        logger.info(f"File received: {chat_file_name} at {file_path}")
         
         if os.path.exists(file_path):
             try:
                 logger.info("Starting document processing...")
-                vector_store = process_document(file_path, file_name, app.state.embedding_model, app.state.cross_encoder_model)
+                vector_store = process_document(file_path, chat_file_name, app.state.embedding_model, app.state.cross_encoder_model)
                 logger.info("Document processing completed")
                 
                 # Verify vector store has documents
@@ -127,7 +127,7 @@ async def upload_and_process_document(file: UploadFile = File(...)):
                 logger.info(f"Documents in vector store: {count}")
                 
                 app.state.vector_store = vector_store
-                return DocumentResponse(status="success" ,response=f"Successfully processed file {file_name}. Added {count} documents to vector store.")
+                return DocumentResponse(status="success" ,response=f"Successfully processed file {chat_file_name}. Added {count} documents to vector store.")
             except Exception as proc_error:
                 logger.error(f"Document Processing error: {str(proc_error)}")
                 raise HTTPException(
@@ -167,7 +167,7 @@ async def Chat(request: ChatRequest):
         embedding_model = app.state.embedding_model
         cross_encoder_model = app.state.cross_encoder_model
         memory = app.state.memory
-        file_name = app.state.file_name
+        chat_file_name = app.state.chat_file_name
 
         if vector_store and embedding_model and cross_encoder_model:
             logger.info("Processing user query...")
@@ -186,7 +186,7 @@ async def Chat(request: ChatRequest):
                                                 query_context=context, 
                                                 memory=memory,
                                                 embedding_model=embedding_model,
-                                                file_name=file_name)
+                                                file_name=chat_file_name)
 
                 return ChatResponse(response=llm_response)
             else:
