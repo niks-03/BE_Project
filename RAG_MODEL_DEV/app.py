@@ -283,6 +283,37 @@ async def visualize_data_func(request: VisualizeRequest):
                             detail={"error":"unexpected error occured.", "message": "An unexpected error occurred. Please try again later."})
 
 
+### ddelte file resources
+@app.delete("/clear-uploads")
+async def delete_all_files():
+    try:
+        base_path = os.path.join(os.path.dirname(__file__), "upload_files")
+        
+        # Check if directory exists
+        if not os.path.exists(base_path):
+            return {"message": "Upload directory does not exist or is already empty"}
+        
+        # Count files before deletion
+        files = os.listdir(base_path)
+        file_count = len(files)
+        
+        # Option 1: Delete individual files (keeps the directory)
+        for filename in files:
+            file_path = os.path.join(base_path, filename)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        
+        logger.info(f"Successfully deleted {file_count} files from upload directory")
+        return {"message": f"Successfully deleted {file_count} files"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting files: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "file deletion error", "message": f"Error while deleting files: {str(e)}"}
+        )
+
+
 ### endpoint to check if vectore store is created
 @app.get("/check-documents")
 async def check_documents():
