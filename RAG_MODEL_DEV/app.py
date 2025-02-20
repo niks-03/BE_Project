@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import Response
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from pathlib import Path
@@ -15,6 +16,7 @@ from Models.refine_query import RefineQuery
 from Models.process_doc import process_document
 from Models.find_context import get_context
 from Models.handle_doc_chat import get_llm_response
+from Models.data_visualize import visualize_data
 
 # Create logs directory if it doesn't exist
 if not os.path.exists('logs'):
@@ -244,7 +246,41 @@ async def upload_and_save_document(file: UploadFile = File(...)):
             status_code=500,
             detail={"error": "Internal Server Error", "message": "An unexpected error occurred. Please try again later."}
         )
+    
 
+### process and create data visualization
+class VisualizeRequest(BaseModel):
+    prompt: str
+
+# class VisualizeResponse(BaseModel):
+#     response: str
+
+# @app.post("/visualize", response_model=VisualizeResponse)
+@app.post("/visualize")
+async def visualize_data_func(request: VisualizeRequest):
+    try:
+        visualize_file_name = app.state.visualize_file_name
+
+        try:
+            graph_byte_string = visualize_data(file_name=visualize_file_name, query=request.prompt)
+            logger.info(f"generated graph byte string: {graph_byte_string}")
+            return Response(
+                content=graph_byte_string, 
+                media_type="image/png"
+            )
+        
+        except Exception as e:
+            logger.error(f"error while generating graphs: {str(e)}")
+            raise HTTPException(status_code=404,
+                                detail={"error":"graph generation error", "message":"Error while generating graph."})
+
+    except HTTPException as e:
+        return e
+    
+    except Exception as e:
+        logger.error(f"Unexpected error occured: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail={"error":"unexpected error occured.", "message": "An unexpected error occurred. Please try again later."})
 
 
 ### endpoint to check if vectore store is created
