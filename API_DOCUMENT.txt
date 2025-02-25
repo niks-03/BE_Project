@@ -1,0 +1,57 @@
+** base endpoint: http://127.0.0.1:8000/  **
+
+I. RAG endpoints:
+    1. send document to process for QnA: (POST)
+        A. endpoint: http://127.0.0.1:8000/process-document
+        B. files supported: PDF
+        C. after successful document process:
+            returned Response : {status="success" ,response="Successfully processed file {file_name}. Added {document_count} documents to vector store."}
+        D. after unsuccessful document process:
+            returned Response : {
+                "detail": {
+                    "error": error-text,
+                    "message": error-message
+                }
+            }
+
+    2. ask query related to document:(POST)
+        A. endpoint: http://127.0.0.1:8000/doc-chat
+        B. hitting endpoint requirement:
+            { "prompt" : user-query}
+        C. after sucess query processing:
+            returned Response: { "response" : response-text}
+        D. after unsuccessful query processing:
+            returned Response : {
+                "detail": {
+                    "error": error-text,
+                    "message": error-message
+                }
+            }
+
+II. Visualization endpoints:
+    1. send document to process for visualization:(POST)
+        A. endpoint: http://127.0.0.1:8000/save-visualize-data
+        B. file supported: CSV, XLSX, XLS
+        C. after successful document process:
+            returned Response: {response="Visualization file saved successfully {visualize_file_name}"}
+        D. after unsuccessful document process:
+            returned Response : {
+                "detail": {
+                    "error": error-text,
+                    "message": error-message
+                }
+            }
+
+    2. ask visualization query:(POST)
+        A. endpoint: http://127.0.0.1:8000/visualize
+        B. hitting endpoint requirement: 
+            { "prompt": user-query}
+        C. after successful query processing:
+            returned Response: { content: byte-string }
+        D. after unsuccessful query processing:
+            returned Response : {
+                "detail": {
+                    "error": error-text,
+                    "message": error-message
+                }
+            }
