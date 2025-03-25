@@ -1,10 +1,11 @@
 myenv/
 TESTING_ENV/
-RAG_MODEL_DEV/__pycache__/
-RAG_MODEL_DEV/.env
-RAG_MODEL_DEV/upload_files/
-RAG_MODEL_DEV/Models/__pycache__/
-RAG_MODEL_DEV/logs/
-RAG_MODEL_DEV/chroma-db/
 instructions.txt
 fastapi-env/
+
+API-devlopment/API-endpoint/Models/__pycache__
+API-devlopment/API-endpoint/__pycache__/
+API-devlopment/API-endpoint/upload_files
+API-devlopment/API-endpoint/chroma-db/
+API-devlopment/API-endpoint/logs
+API-devlopment/API-endpoint/.env
