@@ -7,3 +7,4 @@ RAG_MODEL_DEV/Models/__pycache__/
 RAG_MODEL_DEV/logs/
 RAG_MODEL_DEV/chroma-db/
 instructions.txt
+fastapi-env/

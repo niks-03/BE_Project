@@ -33,20 +33,47 @@ def extract_code_block(response_text):
 
 def execute_code(response_text: str, df: pd.DataFrame, query):
     code = extract_code_block(response_text=response_text)
+    
+    # Remove any plt.show() commands from the code
+    code_lines = code.split('\n')
+    filtered_code = '\n'.join([line for line in code_lines if 'plt.show()' not in line])
+    
     local_vars = {'df': df}
     try:
-        exec(textwrap.dedent(code), globals(), local_vars)
-
+        # Make sure we're using the 'Agg' backend which doesn't require a display
+        import matplotlib
+        matplotlib.use('Agg')
+        
+        # Clear any existing plots
+        plt.clf()
+        plt.close('all')
+        
+        # Execute the plotting code
+        exec(textwrap.dedent(filtered_code), globals(), local_vars)
+        
+        # Create a buffer and save the figure
         buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        plt.close()
+        
+        # Get the current figure - important if code doesn't assign to a variable
+        fig = plt.gcf()
+        
+        # Save the figure to buffer
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        
+        # Close the figure to free memory
+        plt.close(fig)
+        
+        # Reset buffer position
         buf.seek(0)
-
-        logger.info(f"successfully generated image buffer: {buf.getvalue()}")
-        return buf.getvalue()
+        
+        image_bytes = buf.getvalue()
+        logger.info(f"Generated image buffer size: {len(image_bytes)} bytes")
+        
+        return image_bytes
     
     except Exception as e:
-        logger.error(f"error while generating image buffer: {e}")
+        logger.error(f"Error while generating image buffer: {e}")
+        plt.close('all')  # Clean up any open figures
         raise Exception(e)
 
 def handle_query(df, column_names, data_type_list, query):
