@@ -55,15 +55,15 @@ def get_summary_doc_context(embedding_model, file_name):
             logger.info(f"final selected docs: {len(final_selected_docs)}")
 
             summary_context = "\n\n".join(doc.page_content for doc in final_selected_docs)
-            logging.info("summary context generated")
+            logger.info(f"Summary context generated: {summary_context}")
 
             return summary_context
         
         else:
-            logging.error("File not found for summary context")
+            logger.error("File not found for summary context")
             raise Exception(f"File not found for summary context")
     except Exception as e:
-        logging.error(f"Error finding summary context: {str(e)}")
+        logger.error(f"Error finding summary context: {str(e)}")
         raise Exception(f"Error finding summary context: {str(e)}")
 
 
@@ -155,7 +155,7 @@ def get_llm_response(user_query, vector_store, query_context, memory, embedding_
             tools=tools,
             prompt=baseprompttemplate,
         )
-        logger.info(f"agent created: {agent}")
+        # logger.info(f"agent created: {agent}")
     except Exception as e:
         logger.error(f"error creating agent: {str(e)}")
         raise Exception(f"error creating agent: {str(e)}")
@@ -169,14 +169,14 @@ def get_llm_response(user_query, vector_store, query_context, memory, embedding_
             return_intermediate_steps=True,
             memory=memory
         )
-        logger.info(f"agent executor created: {agent_executor}")
+        # logger.info(f"agent executor created: {agent_executor}")
     except Exception as e:
         logger.error(f"error creating agent executor: {str(e)}")
         raise Exception(f"error creating agent executor: {str(e)}")
 
     try:
         output = agent_executor.invoke({"input": query})
-        logger.info(f"response generated: {output}")
+        # logger.info(f"response generated: {output}")
         return output["output"]
     except Exception as e:
         logger.info(f"error generating response: {str(e)}")

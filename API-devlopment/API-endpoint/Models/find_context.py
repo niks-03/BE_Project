@@ -40,6 +40,7 @@ def get_context(vector_store, query, cross_encoder, embedding_model):
         # Create list of (score, document) tuples and sort by score
         scored_results = list(zip(scores, [doc[0] for doc in context]))
         sorted_results = sorted(scored_results, key=lambda x: x[0], reverse=True)
+        logger.info(f"Sorted context documents found in vector store: {sorted_results}")
         
         # Extract just the documents from sorted results
         reranked_docs = [doc for _, doc in sorted_results]
@@ -48,7 +49,7 @@ def get_context(vector_store, query, cross_encoder, embedding_model):
         final_context = " \n\n ".join(doc.page_content for doc in reranked_docs[:6])
         
         if final_context:
-            logger.info(f"Final context generated (length: {len(final_context)})")
+            logger.info(f"Final context generated (length: {len(final_context)}): {final_context}")
             return final_context
         else:
             logger.warning("No final context generated")

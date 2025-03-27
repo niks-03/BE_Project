@@ -23,16 +23,23 @@ if not os.path.exists('logs'):
     os.makedirs('logs')
 
 # Set up logging to file
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/fatapi_main.log'),
-        # logging.StreamHandler()  # This will also print to console
-    ]
-)
-
-logger = logging.getLogger(__name__)
+try:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('logs/fatapi_main.log', mode='a', encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)  # This will also print to console
+        ]
+    )
+    logger = logging.getLogger(__name__)
+    logger.info("Logging configured successfully")
+except Exception as e:
+    print(f"Error configuring logging: {str(e)}")
+    # Fallback to basic console logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to configure file logging: {str(e)}")
 
 # *************************************************
 
