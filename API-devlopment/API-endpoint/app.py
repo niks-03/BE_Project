@@ -7,6 +7,7 @@ import shutil
 import logging
 import sys
 import os
+import base64
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from sentence_transformers import CrossEncoder
@@ -258,24 +259,45 @@ async def upload_and_save_document(file: UploadFile = File(...)):
 ### process and create data visualization
 class VisualizeRequest(BaseModel):
     prompt: str
+    advance: str = "false"
 
-# class VisualizeResponse(BaseModel):
-#     response: str
+class VisualizeResponse(BaseModel):
+    image: str  # Base64 encoded image
+    data: list | dict  # Can be either a list or dictionary
+    explanation: str
 
-# @app.post("/visualize", response_model=VisualizeResponse)
 @app.post("/visualize")
 async def visualize_data_func(request: VisualizeRequest):
     try:
         visualize_file_name = app.state.visualize_file_name
 
         try:
-            graph_byte_string = visualize_data(file_name=visualize_file_name, query=request.prompt)
-            logger.info(f"generated graph byte string: {graph_byte_string}")
-            return Response(
-                content=graph_byte_string, 
-                media_type="image/png"
-            )
-        
+            if request.advance == "true":
+                advance_visualization = visualize_data(file_name=visualize_file_name, query=request.prompt, advance="true")
+                logger.info(f"generated advance visualization: {advance_visualization}")
+                
+                # Convert binary image data to base64 string
+                image_base64 = base64.b64encode(advance_visualization['graph_byte_string']).decode('utf-8')
+                
+                # Ensure data is in the correct format
+                data = advance_visualization['graph_data']
+                if isinstance(data, list):
+                    # If data is a list, wrap it in a dictionary with a descriptive key
+                    data = {"visualization_data": data}
+                
+                return VisualizeResponse(
+                    image=image_base64,
+                    data=data,
+                    explanation=advance_visualization['graph_explanation']
+                )
+            else:
+                graph_byte_string = visualize_data(file_name=visualize_file_name, query=request.prompt, advance="false")
+                logger.info(f"generated graph byte string: {graph_byte_string}")
+                return Response(
+                    content=graph_byte_string, 
+                    media_type="image/png"
+                )
+                
         except Exception as e:
             logger.error(f"error while generating graphs: {str(e)}")
             raise HTTPException(status_code=404,
