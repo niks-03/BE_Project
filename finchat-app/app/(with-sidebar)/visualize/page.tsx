@@ -6,16 +6,34 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
-import { Send, Upload, Bot, User, FileText, Loader2, Trash2, Download } from "lucide-react"
+import { Send, Upload, Bot, User, FileText, Loader2, Trash2, Download, ChevronDown, ChevronUp } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserButton } from "@clerk/nextjs"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import Markdown from "markdown-to-jsx"
 
 // Define message type
+type GraphDataRow = {
+  [key: string]: string | number;
+}
+
 type Message = {
   role: "user" | "assistant"
   content: string
   timestamp: Date
   imageData?: string
+  graphData?: GraphDataRow[]
+  graphExplanation?: string
 }
 
 type VisualizeDocumentState = {
@@ -25,63 +43,57 @@ type VisualizeDocumentState = {
 }
 
 export default function ChatPage() {
-  const [imageData, setImageData] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedImageData = localStorage.getItem('VisualizeImageData');
-      return savedImageData || '';
-    }
-    return '';
-  });
-  // const [messages, setMessages] = useState<Message[]>([])
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedMessages = localStorage.getItem('VisualizeChatMessages');
-      return savedMessages ? JSON.parse(savedMessages) : [];
-    }
-    return [];
-  });
-
-  const [visualizeDocumentState, setDocumentState] = useState<VisualizeDocumentState | null> (() =>{
-    if (typeof window !== 'undefined') {
-      const savedDocumentState = localStorage.getItem('VisualizeDocumentState');
-      return savedDocumentState ? JSON.parse(savedDocumentState) : null;
-    }
-    return null;
-  });
+  const [imageData, setImageData] = useState('')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [visualizeDocumentState, setDocumentState] = useState<VisualizeDocumentState | null>(null)
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [uploadedDocument, setUploadedDocument] = useState<File | null>(null)
   const [isProcessingDocument, setIsProcessingDocument] = useState(false)
-  // const [isDocumentProcessed, setIsDocumentProcessed] = useState(false)
-  const [isDocumentProcessed, setIsDocumentProcessed] = useState(
-    visualizeDocumentState?.isProcessed || false
-  )
+  const [isDocumentProcessed, setIsDocumentProcessed] = useState(false)
   const [processingError, setProcessingError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false)
 
+  // Load saved state from localStorage on client-side only
+  useEffect(() => {
+    const savedImageData = localStorage.getItem('VisualizeImageData')
+    const savedMessages = localStorage.getItem('VisualizeChatMessages')
+    const savedDocumentState = localStorage.getItem('VisualizeDocumentState')
+
+    if (savedImageData) setImageData(savedImageData)
+    if (savedMessages) setMessages(JSON.parse(savedMessages))
+    if (savedDocumentState) {
+      const docState = JSON.parse(savedDocumentState)
+      setDocumentState(docState)
+      setIsDocumentProcessed(docState.isProcessed)
+    }
+  }, [])
+
+  // Save state to localStorage when it changes
   useEffect(() => {
     if (messages.length > 0) {
-      localStorage.setItem('VisualizeChatMessages', JSON.stringify(messages));
+      localStorage.setItem('VisualizeChatMessages', JSON.stringify(messages))
     }
-  }, [messages]);
+  }, [messages])
 
   useEffect(() => {
     if (uploadedDocument) {
-      const docState: VisualizeDocumentState ={
+      const docState: VisualizeDocumentState = {
         name: uploadedDocument.name,
         size: uploadedDocument.size,
         isProcessed: isDocumentProcessed
-      };
-      localStorage.setItem("VisualizeDocumentState", JSON.stringify(docState));
+      }
+      localStorage.setItem("VisualizeDocumentState", JSON.stringify(docState))
     }
-  }, [uploadedDocument, isDocumentProcessed]);
+  }, [uploadedDocument, isDocumentProcessed])
 
   useEffect(() => {
     if (imageData) {
-      localStorage.setItem('VisualizeImageData', imageData);
+      localStorage.setItem('VisualizeImageData', imageData)
     }
-  }, [imageData]);
+  }, [imageData])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -111,7 +123,10 @@ export default function ChatPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: input }),
+        body: JSON.stringify({ 
+          prompt: input,
+          advanced: isAdvancedMode 
+        }),
       })
 
       if (!response.ok) {
@@ -119,13 +134,14 @@ export default function ChatPage() {
       }
 
       const data = await response.json()
+      console.log("Received visualization data:", data)
 
       if (data.imageData) {
-        console.log(`Received image data of length: ${data.imageData.length}`);
-        setImageData(data.imageData);
-        localStorage.setItem('VisualizeImageData', data.imageData);
+        console.log(`Received image data of length: ${data.imageData.length}`)
+        setImageData(data.imageData)
+        localStorage.setItem('VisualizeImageData', data.imageData)
       } else {
-        console.log('No image data received');
+        console.log('No image data received')
       }
 
       // Add assistant response to chat
@@ -134,7 +150,15 @@ export default function ChatPage() {
         content: data.response,
         timestamp: new Date(),
         imageData: data.imageData,
+        graphData: data.graphData,
+        graphExplanation: data.graphExplanation,
       }
+
+      console.log("Adding assistant message with data:", {
+        hasImageData: !!assistantMessage.imageData,
+        hasGraphData: !!assistantMessage.graphData,
+        hasGraphExplanation: !!assistantMessage.graphExplanation
+      })
 
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
@@ -381,6 +405,64 @@ export default function ChatPage() {
                           </button>
                         </div>
                       )}
+                      {(message.graphData || message.graphExplanation) && (
+                        <div className="mt-4 space-y-2">
+                          {message.graphData && (
+                            <Collapsible>
+                              <CollapsibleTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between">
+                                  <span>View Data</span>
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="mt-2">
+                                <div className="p-4 bg-background rounded-lg border">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        {message.graphData.length > 0 && 
+                                          Object.keys(message.graphData[0]).map((key) => (
+                                            <TableHead key={key}>{key}</TableHead>
+                                          ))
+                                        }
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {message.graphData.map((row, index) => (
+                                        <TableRow key={index}>
+                                          {Object.values(row).map((value, cellIndex) => (
+                                            <TableCell key={cellIndex}>
+                                              {typeof value === 'number' 
+                                                ? value.toLocaleString() 
+                                                : String(value)}
+                                            </TableCell>
+                                          ))}
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          
+                          {message.graphExplanation && (
+                            <Collapsible>
+                              <CollapsibleTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between">
+                                  <span>View Explanation</span>
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="mt-2">
+                                <div className="p-4 bg-background rounded-lg border">
+                                  <Markdown>{message.graphExplanation}</Markdown>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -413,6 +495,14 @@ export default function ChatPage() {
       <div className="border-t bg-background py-4">
         <div className="max-w-3xl mx-auto px-4">
           <form onSubmit={handleSendMessage} className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="advanced-mode"
+                checked={isAdvancedMode}
+                onCheckedChange={setIsAdvancedMode}
+              />
+              <Label htmlFor="advanced-mode">Advanced</Label>
+            </div>
             <div className="flex-grow relative">
               <Input
                 value={input}
