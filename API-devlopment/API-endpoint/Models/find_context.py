@@ -50,6 +50,10 @@ def get_context(vector_store, query, cross_encoder, embedding_model):
         
         if final_context:
             logger.info(f"Final context generated (length: {len(final_context)}): {final_context}")
+            with open("E:\\Nikhil\\BE_PR_Development\\TESTING_ENV\\testing-model\\ans&context2.txt", "a") as f:
+                f.write(f"+++query+++: '{query}'\n\n")
+                f.write(f"+++Context With Score+++: '{sorted_results}'\n\n")
+                f.write(f"+++Final Context+++: '{final_context}'\n\n")
             return final_context
         else:
             logger.warning("No final context generated")

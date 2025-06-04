@@ -17,7 +17,7 @@ load_dotenv()
 KEY = os.getenv("API_KEY_1")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-1.5-pro",
     temperature=1,
     max_tokens=None,
     timeout=None,
@@ -177,6 +177,9 @@ def get_llm_response(user_query, vector_store, query_context, memory, embedding_
     try:
         output = agent_executor.invoke({"input": query})
         # logger.info(f"response generated: {output}")
+        with open("E:\\Nikhil\\BE_PR_Development\\TESTING_ENV\\testing-model\\ans&context2.txt", "a") as f:
+            f.write(f"+++Answer+++: '{output['output']}'")
+            f.write("\n\n==============================================================\n\n")
         return output["output"]
     except Exception as e:
         logger.info(f"error generating response: {str(e)}")
